@@ -56,6 +56,9 @@ weather %>% ggplot(aes(x=ymd,y=tmin)) + geom_line()
 weather %>% ggplot(aes(x=ymd)) + geom_line(aes(y=tmin), color = 'blue') +
   geom_line(aes(y=tmax), color = 'red') + labs(y='temperature', x ='date')
 
+weather %>% pivot_longer(5:6,names_to = "type", values_to = "temp") %>% select(ymd,type,temp) %>%
+  ggplot(aes(x=ymd, y=temp, color = type)) + geom_line() + labs(y='temperature', x ='date')
+
 ########################################
 # plot trip and weather data
 ########################################
