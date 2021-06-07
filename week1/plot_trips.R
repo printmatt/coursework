@@ -37,6 +37,11 @@ trips %>% mutate(age = 2014-birth_year) %>% group_by(age,gender) %>%
 # plot the ratio of male to female trips (on the y axis) by age (on the x axis)
 # hint: use the spread() function to reshape things to make it easier to compute this ratio
 # (you can skip this and come back to it tomorrow if we haven't covered spread() yet)
+trips %>% mutate(age = 2014-birth_year) %>% group_by(age,gender) %>%
+  summarize(count = n()) %>%
+  pivot_wider(names_from = gender, values_from = count) %>%
+  mutate(male_to_female_ratio = Male/Female) %>%
+  ggplot(aes(x=age, y=male_to_female_ratio)) + geom_line(na.rm = TRUE) + xlim(16,90)
 
 ########################################
 # plot weather data
@@ -48,6 +53,8 @@ weather %>% ggplot(aes(x=ymd,y=tmin)) + geom_line()
 # plot the minimum temperature and maximum temperature (on the y axis, with different colors) over each day (on the x axis)
 # hint: try using the gather() function for this to reshape things before plotting
 # (you can skip this and come back to it tomorrow if we haven't covered reshaping data yet)
+weather %>% ggplot(aes(x=ymd)) + geom_line(aes(y=tmin), color = 'blue') +
+  geom_line(aes(y=tmax), color = 'red') + labs(y='temperature', x ='date')
 
 ########################################
 # plot trip and weather data
@@ -74,9 +81,20 @@ trips_with_weather %>% group_by(ymd,tmin,prcp) %>% summarize(count=n()) %>%
 
 # compute the average number of trips and standard deviation in number of trips by hour of the day
 # hint: use the hour() function from the lubridate package
-trips_with_weather %>% mutate(hour = hour(starttime)) %>% group_by(hour) %>%
-  summarize(average_rides_per_hour = n()/365)
+trips_with_weather %>% mutate(hour = hour(starttime)) %>% group_by(hour,ymd) %>%
+  summarize(trips_per_hourdate = n()) %>%
+  summarize(mean = mean(trips_per_hourdate), standard_dev = sd(trips_per_hourdate))
+
 
 # plot the above
+trips_with_weather %>% mutate(hour = hour(starttime)) %>% group_by(hour,ymd) %>%
+  summarize(trips_per_hourdate = n()) %>%
+  summarize(mean = mean(trips_per_hourdate), standard_dev = sd(trips_per_hourdate)) %>%
+  ggplot(aes(x=hour, y=mean)) + geom_line() +geom_line(aes(y=standard_dev),color = "red")
+
 # repeat this, but now split the results by day of the week (Monday, Tuesday, ...) or weekday vs. weekend days
 # hint: use the wday() function from the lubridate package
+trips_with_weather %>% mutate(hour = hour(starttime)) %>% group_by(hour,ymd) %>%
+  summarize(trips_per_hourdate = n()) %>% mutate(week_day = wday(ymd)) %>% ungroup(hour,ymd) %>%
+  group_by(week_day,hour) %>% summarize(mean = mean(trips_per_hourdate), standard_dev = sd(trips_per_hourdate)) %>%
+  ggplot(aes(x=hour, y=mean)) + geom_line() +geom_line(aes(y=standard_dev),color = "red") + facet_wrap(~ week_day)
