@@ -30,7 +30,9 @@ holidays <- holidays %>% filter(ymd >= "2014-01-01" & ymd < "2015-01-01")
 trips_per_day <- trips_per_day %>% left_join(holidays,by='ymd')
 
 trips_per_day <- trips_per_day %>% mutate(if_holiday = if_else(is.na(holiday),0,1)) %>%
-  mutate(week_day = if_else(wday(ymd)>1 & wday(ymd)<7,1,0))
+  mutate(week_day = if_else(wday(ymd)>1 & wday(ymd)<7,1,0)) %>%
+  mutate(rain = if_else(prcp>0.5,1,0)) %>%
+  mutate(deep_snow = if_else(snwd>=0.5, snwd, 0))
 
 frac_train = 0.8
 frac_test = 0.1
@@ -57,7 +59,7 @@ trips_per_day_test <- test_validate_set[-validate,]
 
 ```
 
-## Trips Model of features minimum temperature and snow
+## Trips Models of features minimum temperature and snow
 
 Compare between different polynomial power of minimum temperature and then plot the results by RMSE of training and validating.
 ```{r cars}
@@ -155,6 +157,38 @@ ggplot(plot_data, aes(x=K, y=error, color=split)) +
 train_err
 validate_err
 ```
-This model seems to work better than the previous ones. We will select this at tmax polynomial degree 5. The resulting RMSE is 4549 and 4035.
+This model seems to work better than the previous ones. The resulting RMSEs here are 4549 and 4035. We seem to be on the right track so we will try combining this with the idea that when it's raining and cold, people are less likely to use the bike.
 
+## Trips Models of tmax, snwd, weekdays, and tmin*rain
+We predetermined the weather to be heavily raining when precipitation is more than 0.5. Our model will combine the features tmin and whether it heavily rains using the * operator in the lm function. 
+```{r}
+K <- 1:8
+train_err <- c()
+validate_err <- c()
+for (k in K) {
+  
+  # fit on the training data
+  model <- lm(num_trips ~ poly(tmax,k,raw = T) + snwd + week_day + tmin*rain , data = trips_per_day_train)
+  
+  # evaluate on the training data
+  train_err[k] <- sqrt(mean((predict(model, trips_per_day_train) - trips_per_day_train$num_trips)^2))
+  
+  # evaluate on the validate data
+  validate_err[k] <- sqrt(mean((predict(model, trips_per_day_validate) - trips_per_day_validate$num_trips)^2))
+}
+plot_data <- data.frame(K, train_err, validate_err) %>%
+  gather("split", "error", -K)
+
+ggplot(plot_data, aes(x=K, y=error, color=split)) +
+  geom_line() +
+  scale_x_continuous(breaks=K) +
+  xlab('Polynomial Degree') +
+  ylab('RMSE')
+
+train_err
+validate_err
+
+```
+
+The results look much more promising with the best validating RMSE at polynomial degree 4 for tmax. RMSEs are: 3907 and 3137 for training and validating. We will select this as our winning model. 
 
